@@ -18,7 +18,7 @@ configuration:
     # Specify a package ID if you would like to pack+push a package too
     packageId:
       type: string
-    # File pattern of files to include in pack+push
+    # File patterns of files to include in pack+push
     packageInclude:
       type: array
       items:
@@ -31,6 +31,9 @@ configuration:
       type: string
     releaseChannel:
       type: string
+    preventProgressionOnFailure:
+      type: array
+      items: string
   required:
     - project
   additionalProperties: false
