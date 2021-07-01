@@ -86,7 +86,7 @@ if [[ -n "${PREVENTPROGRESSIONONFAIL_LIST:-}" ]] ; then
         "$PREVENTPROGRESSIONONFAIL_LIST")"
 
     if [[ $PREVENT_PROGRESSION == "true" ]]; then
-        octo_prevent_progression_command+=("octo" "prevent-releaseprogression" "--project=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PROJECT" "--version=$PLUGIN_PACKAGE_VERSION" "--reason='Steps ${PREVENT_REASON[@]} did not pass'")
+        octo_prevent_progression_command+=("octo" "prevent-releaseprogression" "--project=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PROJECT" "--version=$PLUGIN_PACKAGE_VERSION" "--reason=Steps did not pass: ${PREVENT_REASON[@]}")
     fi;
 
 fi
@@ -99,9 +99,11 @@ function run_octopushpack() {
 
 if [[ -n "${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}" ]] ; then
     echo "--- :hammer: Running octo push+pack"
-    printf "%q " "${octo_pack_command[@]}" "\n"
-    printf "%q " "${octo_push_command[@]}" "\n"
-    printf "%q " "${octo_build_info_command[@]}" "\n"
+    printf "%q " "${octo_pack_command[@]}"
+    echo
+    printf "%q " "${octo_push_command[@]}"
+    echo
+    printf "%q " "${octo_build_info_command[@]}"
     echo
     run_octopushpack
 fi
