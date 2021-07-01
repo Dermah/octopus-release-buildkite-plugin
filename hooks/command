@@ -49,6 +49,9 @@ fi
 octo_pack_command=("octo" "pack" "--id=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}" "--format=Zip" "--version=$PLUGIN_PACKAGE_VERSION")
 octo_push_command=("octo" "push" "--package=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}.${PLUGIN_PACKAGE_VERSION}.zip")
 octo_build_info_command=("octo" "build-information" "--package-id=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}" "--version=$PLUGIN_PACKAGE_VERSION" "--file=buildInformation.json")
+
+echo PREVENT PROGRESS
+echo $BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEINCLUDE
 if [[ -n "${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEINCLUDE:-}" ]] ; then
     for pattern in $BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEINCLUDE; do
         octo_pack_command+=("--include=$pattern")

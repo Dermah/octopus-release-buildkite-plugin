@@ -20,7 +20,9 @@ configuration:
       type: string
     # File pattern of files to include in pack+push
     packageInclude:
-      type: string
+      type: array
+      items:
+        type: string
     packageVersion:
       type: string
     releaseNumber:
@@ -32,5 +34,3 @@ configuration:
   required:
     - project
   additionalProperties: false
-    
-    
