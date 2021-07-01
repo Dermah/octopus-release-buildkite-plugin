@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
+# command is run from the root directory
+. "$DIR/../lib/common.sh"
+
+# Generate buildInformation.json, with commit message json sanitised
 SANITISED_BUILDKITE_MESSAGE=$(echo "$BUILDKITE_MESSAGE" | jq -aRs .)
 cat << EOF > ./buildInformation.json
 {
@@ -50,8 +55,9 @@ octo_pack_command=("octo" "pack" "--id=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAG
 octo_push_command=("octo" "push" "--package=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}.${PLUGIN_PACKAGE_VERSION}.zip")
 octo_build_info_command=("octo" "build-information" "--package-id=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}" "--version=$PLUGIN_PACKAGE_VERSION" "--file=buildInformation.json")
 
-echo PREVENT PROGRESS
-echo $BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEINCLUDE
+PACKAGEINCLUDE_LIST=$(plugin_read_list_attribute PACKAGEINCLUDE)
+echo "PROGRESSION!"
+echo "$PACKAGEINCLUDE_LIST"
 if [[ -n "${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEINCLUDE:-}" ]] ; then
     for pattern in $BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEINCLUDE; do
         octo_pack_command+=("--include=$pattern")
@@ -64,10 +70,6 @@ function run_octopushpack() {
     "${octo_build_info_command[@]}"
 }
 
-function run_octorelease() {
-    "${octo_release_command[@]}"
-}
-
 if [[ -n "${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}" ]] ; then
     echo "--- :hammer: Running octo push+pack"
     printf "%q " "${octo_pack_command[@]}" "\n"
@@ -77,6 +79,9 @@ if [[ -n "${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}" ]] ; then
     run_octopushpack
 fi
 
+function run_octorelease() {
+    "${octo_release_command[@]}"
+}
 
 echo "--- :hammer: Running octo release"
 printf "%q " "${octo_release_command[@]}"
