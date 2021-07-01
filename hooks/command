@@ -30,11 +30,13 @@ octo_release_command=("octo" "create-release" "--progress" "--project=$BUILDKITE
 
 if [[ -n "${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_RELEASENUMBER:-}" ]] ; then
     octo_release_command+=("--releaseNumber=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_RELEASENUMBER")
+    octo_prevent_progression_command+=("--releaseNumber=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_RELEASENUMBER")
     PLUGIN_PACKAGE_VERSION=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_RELEASENUMBER
 fi
 
 if [[ -n "${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEVERSION:-}" ]] ; then
     octo_release_command+=("--packageVersion=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEVERSION")
+    octo_prevent_progression_command+=("--version=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEVERSION")
     PLUGIN_PACKAGE_VERSION=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEVERSION
 fi
 
@@ -54,14 +56,39 @@ fi
 octo_pack_command=("octo" "pack" "--id=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}" "--format=Zip" "--version=$PLUGIN_PACKAGE_VERSION")
 octo_push_command=("octo" "push" "--package=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}.${PLUGIN_PACKAGE_VERSION}.zip")
 octo_build_info_command=("octo" "build-information" "--package-id=${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEID:-}" "--version=$PLUGIN_PACKAGE_VERSION" "--file=buildInformation.json")
+octo_prevent_progression_command=()
+PREVENT_PROGRESSION=false
+
 
 PACKAGEINCLUDE_LIST=$(plugin_read_list_attribute PACKAGEINCLUDE)
-echo "PROGRESSION!"
-echo "$PACKAGEINCLUDE_LIST"
-if [[ -n "${BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEINCLUDE:-}" ]] ; then
-    for pattern in $BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PACKAGEINCLUDE; do
-        octo_pack_command+=("--include=$pattern")
-    done
+if [[ -n "${PACKAGEINCLUDE_LIST:-}" ]] ; then
+    echo "INCLUDE!"
+    echo "$PACKAGEINCLUDE_LIST"
+
+    while IFS=$'\n' read -r pattern ; do
+        [[ -n "${pattern:-}" ]] && octo_pack_command+=("--include=$pattern")
+    done <<< "$(printf '%s\n%s' \
+        "$PACKAGEINCLUDE_LIST")"
+fi
+
+PREVENTPROGRESSIONONFAIL_LIST=$(plugin_read_list_attribute PREVENTPROGRESSIONONFAIL)
+if [[ -n "${PREVENTPROGRESSIONONFAIL_LIST:-}" ]] ; then
+    echo "PROGRESSION!"
+    echo "$PREVENTPROGRESSIONONFAIL_LIST"
+
+    PREVENT_REASON=()
+    while IFS=$'\n' read -r step_key ; do
+        if [[ $(buildkite-agent step get "outcome" --step $step_key ) != "passed" ]]; then
+            PREVENT_PROGRESSION=true
+            PREVENT_REASON+=("$step_key")
+        fi;
+    done <<< "$(printf '%s\n%s' \
+        "$PREVENTPROGRESSIONONFAIL_LIST")"
+
+    if [[ $PREVENT_PROGRESSION == "true" ]]; then
+        octo_prevent_progression_command+=("octo" "prevent-releaseprogression" "--project=$BUILDKITE_PLUGIN_OCTOPUS_RELEASE_PROJECT" "--version=$PLUGIN_PACKAGE_VERSION" "--reason='Steps ${PREVENT_REASON[@]} did not pass'")
+    fi;
+
 fi
 
 function run_octopushpack() {
@@ -87,6 +114,18 @@ echo "--- :hammer: Running octo release"
 printf "%q " "${octo_release_command[@]}"
 echo
 run_octorelease
+
+if [[ $PREVENT_PROGRESSION == "true" ]]; then
+    function run_octopreventrelease() {
+        "${octo_prevent_progression_command[@]}"
+    }
+
+    echo "--- :x: Preventing release from progressing"
+    echo "The following steps failed and will prevent release progress:" "${PREVENT_REASON[@]}"
+    printf "%q " "${octo_prevent_progression_command[@]}"
+    echo
+    run_octopreventrelease
+fi
 
 # Octopus Release Annotation
 cat << EOF | buildkite-agent annotate --context 'buildkite-plugin-octopus-release-' --style 'info'
